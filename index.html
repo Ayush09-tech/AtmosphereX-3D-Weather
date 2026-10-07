@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AtmosphereX — Solar System & India Weather Intelligence</title>
+<script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<style>
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#000;font-family:Inter,Segoe UI,Arial,sans-serif;color:#eaf7ff}
+#hud{position:fixed;z-index:20;inset:0;pointer-events:none}
+.top{position:absolute;left:18px;right:18px;top:16px;display:flex;justify-content:space-between;align-items:center;gap:12px}
+.brand{padding:12px 16px;border:1px solid #24d9ff66;background:#06101ce6;border-radius:14px;box-shadow:0 0 35px #00cfff22;pointer-events:auto}
+.brand b{color:#4de8ff;letter-spacing:2px;font-size:12px}
+.brand small{display:block;color:#7e9bad;margin-top:3px;font-size:10px}
+.actions{display:flex;gap:8px;pointer-events:auto}
+.btn{border:1px solid #31dcff66;background:#071827dd;color:#c8f6ff;padding:10px 13px;border-radius:10px;cursor:pointer;font-weight:700;letter-spacing:.4px;font-size:11px}
+.btn:hover{background:#0c2638}
+.panel{position:absolute;right:18px;bottom:18px;width:330px;padding:15px;border:1px solid #2ddcff66;background:#050d17e8;border-radius:16px;box-shadow:0 0 35px #00bfff22;pointer-events:auto}
+.panel h2{margin:4px 0 2px;color:#5eeaff;font-size:18px}
+.muted{color:#7890a3;font-size:12px}
+.metric{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.m{background:#081623;border:1px solid #183347;border-radius:10px;padding:9px}
+.m span{display:block;color:#6f8b9d;font-size:10px;text-transform:uppercase}
+.m b{font-size:15px}
+.risk{margin-top:10px;padding:9px;border-radius:10px;background:#071c1d;border:1px solid #29e6bd55;font-size:12px}
+.search{display:flex;gap:6px;margin-top:10px}
+.search input{flex:1;background:#030a11;border:1px solid #24465b;color:#fff;border-radius:9px;padding:9px;font-size:12px;outline:none}
+.hint{font-size:11px;color:#668092;margin-top:8px;line-height:1.4}
+
+#mapPanel{display:none;position:fixed;z-index:50;inset:0;background:#020711}
+.maphead{height:68px;display:flex;align-items:center;justify-content:space-between;padding:0 18px;background:#06101ceF;border-bottom:1px solid #2edcff44}
+.maptitle b{color:#58eaff;letter-spacing:1.5px;font-size:14px}
+.maptitle small{display:block;color:#7893a5;margin-top:3px;font-size:10px}
+.mapwrap{position:absolute;top:68px;bottom:0;left:0;right:0}
+.mapnote{position:absolute;z-index:1000;left:18px;top:84px;background:#06101de8;border:1px solid #2edcff55;border-radius:12px;padding:12px;width:280px}
+.mapnote b{color:#65edff}
+.pin{width:18px;height:18px;background:#4deaff;border:2px solid white;border-radius:50% 50% 50% 0;transform:rotate(-45deg);box-shadow:0 0 16px #00eaff}
+.leaflet-container{background:#07111a}
+.statebar{position:absolute;z-index:1000;right:18px;top:84px;width:270px;max-height:calc(100vh - 110px);overflow:auto;background:#06101de8;border:1px solid #2edcff55;border-radius:12px;padding:12px}
+.statebar h4{margin:0 0 8px;color:#65edff;font-size:12px}
+.statebtn{width:100%;text-align:left;margin:3px 0;padding:7px 8px;border:1px solid #173a4c;background:#071621;color:#c9eff7;border-radius:7px;cursor:pointer;font-size:11px}
+.statebtn:hover{border-color:#49eaff}
+.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:#07131f;color:#dff9ff;border:1px solid #2edcff55}
+#title3d{position:fixed;z-index:19;top:18px;left:50%;transform:translateX(-50%);text-align:center;pointer-events:none;text-shadow:0 0 18px #249fff}
+#title3d b{font-size:13px;letter-spacing:4px;color:#dff8ff}
+#title3d span{display:block;font-size:9px;letter-spacing:2px;color:#6e8fae;margin-top:4px}
+</style>
+<script>
+const INDIA={
+"Andhra Pradesh":[15.9129,79.7400,"Tropical / Semi-arid"],"Arunachal Pradesh":[28.2180,94.7278,"Mountain / Humid"],"Assam":[26.2006,92.9376,"Humid Subtropical"],"Bihar":[25.0961,85.3131,"Humid Subtropical"],"Chhattisgarh":[21.2787,81.8661,"Tropical Wet-Dry"],"Goa":[15.2993,74.1240,"Tropical Monsoon"],"Gujarat":[22.2587,71.1924,"Semi-arid / Coastal"],"Haryana":[29.0588,76.0856,"Semi-arid"],"Himachal Pradesh":[31.1048,77.1734,"Mountain"],"Jharkhand":[23.6102,85.2799,"Tropical Wet-Dry"],"Karnataka":[15.3173,75.7139,"Tropical / Monsoon"],"Kerala":[10.8505,76.2711,"Tropical Monsoon"],"Madhya Pradesh":[22.9734,78.6569,"Tropical Wet-Dry"],"Maharashtra":[19.7515,75.7139,"Tropical / Semi-arid"],"Manipur":[24.6637,93.9063,"Humid Subtropical"],"Meghalaya":[25.4670,91.3662,"Humid / Very Wet"],"Mizoram":[23.1645,92.9376,"Humid Tropical"],"Nagaland":[26.1584,94.5624,"Humid Subtropical"],"Odisha":[20.9517,85.0985,"Tropical Monsoon"],"Punjab":[31.1471,75.3412,"Semi-arid"],"Rajasthan":[27.0238,74.2179,"Arid / Semi-arid"],"Sikkim":[27.5330,88.5122,"Mountain"],"Tamil Nadu":[11.1271,78.6569,"Tropical / Coastal"],"Telangana":[18.1124,79.0193,"Tropical Wet-Dry"],"Tripura":[23.9408,91.9882,"Humid Subtropical"],"Uttar Pradesh":[26.8467,80.9462,"Humid Subtropical"],"Uttarakhand":[30.0668,79.0193,"Mountain"],"West Bengal":[22.9868,87.8550,"Tropical / Humid"]};
+
+const PLACES={
+  "Bengaluru":{"lat":12.9716,"lon":77.5946,"country":"India","state":"Karnataka"},
+  "Mumbai":{"lat":19.076,"lon":72.8777,"country":"India","state":"Maharashtra"},
+  "Delhi":{"lat":28.6139,"lon":77.209,"country":"India","state":"Delhi"},
+  "Chennai":{"lat":13.0827,"lon":80.2707,"country":"India","state":"Tamil Nadu"},
+  "Kolkata":{"lat":22.5726,"lon":88.3639,"country":"India","state":"West Bengal"},
+  "London":{"lat":51.5074,"lon":-0.1278,"country":"UK","state":"England"}
+};
+
+const PLANET_MODELS = {
+  "sun": { name: "The Sun", temp: "5,500 °C", feels: "Plasma Core", hum: "0% (Vacuum)", wind: "400 km/s", press: "N/A", rain: "0 mm", condition: "Solar Radiation Active", risk: "⚠ Extreme Solar Output" },
+  "mercury": { name: "Mercury", temp: "167 °C", feels: "430°C / -180°C", hum: "Exosphere", wind: "Solar Wind", press: "< 0.1 nPa", rain: "0 mm", condition: "Extreme Thermal Shift", risk: "⚠ High Radiation" },
+  "venus": { name: "Venus", temp: "465 °C", feels: "490 °C", hum: "96.5% CO2", wind: "360 km/h", press: "9.2 MPa", rain: "Sulfuric Acid", condition: "Greenhouse Collapse", risk: "⚠ Corrosive Atmosphere" },
+  "mars": { name: "Mars", temp: "-60 °C", feels: "-65 °C", hum: "95% CO2", wind: "90 km/h", press: "610 Pa", rain: "0 mm", condition: "Dust Storm Activity", risk: "⚠ Fine Particulate Risk" },
+  "jupiter": { name: "Jupiter", temp: "-110 °C", feels: "-140 °C", hum: "H2 / He", wind: "540 km/h", press: "> 100 kPa", rain: "Helium Showers", condition: "Great Red Spot Active", risk: "⚠ Severe Jovian Storms" },
+  "saturn": { name: "Saturn", temp: "-140 °C", feels: "-170 °C", hum: "H2 / He", wind: "1,800 km/h", press: "> 100 kPa", rain: "Diamond Rain", condition: "Ring Vortex Dynamics", risk: "⚠ Supersonic Winds" },
+  "uranus": { name: "Uranus", temp: "-195 °C", feels: "-220 °C", hum: "Methane Ice", wind: "900 km/h", press: "Ice Giant", rain: "Methane Snow", condition: "Deep Freeze Haze", risk: "⚠ Extreme Cryo Hazard" },
+  "neptune": { name: "Neptune", temp: "-200 °C", feels: "-230 °C", hum: "Methane Ice", wind: "2,100 km/h", press: "Ice Giant", rain: "Diamond Hail", condition: "Supersonic Jet Streams", risk: "⚠ Maximum Wind Alert" }
+};
+
+let map;
+
+function weatherText(c){
+  const x={0:'Clear sky',1:'Mainly clear',2:'Partly cloudy',3:'Overcast',45:'Fog',48:'Rime fog',51:'Light drizzle',53:'Drizzle',55:'Heavy drizzle',61:'Light rain',63:'Rain',65:'Heavy rain',71:'Light snow',73:'Snow',75:'Heavy snow',80:'Rain showers',81:'Heavy showers',82:'Violent showers',95:'Thunderstorm',96:'Thunderstorm + hail',99:'Severe thunderstorm'};
+  return x[c]||'Unknown';
+}
+
+async function loadWeather(p, name){
+  document.getElementById('place').textContent = name;
+  document.getElementById('status').textContent = 'SYNCING LIVE WEATHER…';
+  try {
+    let u = `https://api.open-meteo.com/v1/forecast?latitude=${p.lat}&longitude=${p.lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,surface_pressure,precipitation&timezone=auto`;
+    let d = await (await fetch(u)).json();
+    let c = d.current;
+    document.getElementById('temp').textContent = Math.round(c.temperature_2m) + '°C';
+    document.getElementById('feels').textContent = Math.round(c.apparent_temperature) + '°C';
+    document.getElementById('hum').textContent = c.relative_humidity_2m + '%';
+    document.getElementById('wind').textContent = Math.round(c.wind_speed_10m) + ' km/h';
+    document.getElementById('press').textContent = Math.round(c.surface_pressure) + ' hPa';
+    document.getElementById('rain').textContent = c.precipitation + ' mm';
+    document.getElementById('condition').textContent = weatherText(c.weather_code);
+    let severe = [65,75,82,95,96,99].includes(c.weather_code);
+    document.getElementById('risk').textContent = severe ? '⚠ Elevated weather risk' : '● Normal atmospheric conditions';
+    document.getElementById('status').textContent = 'LIVE • OPEN-METEO TELEMETRY';
+  } catch(e) {
+    document.getElementById('status').textContent = 'OFFLINE / FALLBACK MODE';
+    document.getElementById('condition').textContent = 'Connection error';
+  }
+}
+
+function loadPlanet(key){
+  const data = PLANET_MODELS[key];
+  if(!data) return;
+  document.getElementById('place').textContent = data.name;
+  document.getElementById('status').textContent = '● PLANETARY WEATHER MODEL';
+  document.getElementById('temp').textContent = data.temp;
+  document.getElementById('feels').textContent = data.feels;
+  document.getElementById('hum').textContent = data.hum;
+  document.getElementById('wind').textContent = data.wind;
+  document.getElementById('press').textContent = data.press;
+  document.getElementById('rain').textContent = data.rain;
+  document.getElementById('condition').textContent = data.condition;
+  document.getElementById('risk').textContent = data.risk;
+}
+
+function pinIcon(){
+  return L.divIcon({className:'',html:`<div class="pin"></div>`,iconSize:[18,18],iconAnchor:[9,18],popupAnchor:[0,-18]});
+}
+
+function openMap(){
+  document.getElementById('mapPanel').style.display='block';
+  if(map) return;
+  map = L.map('worldMap',{worldCopyJump:true,zoomControl:true}).setView([22,20],2);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:7,attribution:'© OpenStreetMap contributors'}).addTo(map);
+  
+  L.marker([22.5,79],{icon:pinIcon()}).addTo(map).bindPopup('<b>INDIA — WEATHER ACCESS</b><br>Click to enter Indian state weather').on('click',()=>showIndia());
+  L.marker([51.5074,-0.1278],{icon:pinIcon()}).addTo(map).bindPopup('<b>LONDON — WEATHER ACCESS</b><br>Live UK weather node').on('click',()=>loadWeather(PLACES.London,'London, UK'));
+  
+  document.getElementById('statePanel').innerHTML='<h4>INDIA STATE NETWORK</h4>'+Object.keys(INDIA).map(s=>`<button class="statebtn" onclick="selectState('${s}')">${s}</button>`).join('');
+}
+
+function closeMap(){document.getElementById('mapPanel').style.display='none';}
+function showIndia(){map.flyTo([22,79],4.6,{duration:1.2});document.getElementById('statePanel').style.display='block';}
+
+function selectState(s){
+  let a=INDIA[s];
+  map.flyTo(a.slice(0,2),6,{duration:1});
+  let p={lat:a[0],lon:a[1]};
+  loadWeather(p,s+', India');
+  L.popup().setLatLng(a.slice(0,2)).setContent(`<b>${s}</b><br>Climate zone: ${a[2]}<br><small>Live weather loaded in HUD</small>`).openOn(map);
+}
+
+function searchPlace(){
+  let q=document.getElementById('search').value.trim().toLowerCase();
+  let k=Object.keys(PLACES).find(x=>x.toLowerCase().includes(q));
+  if(k){ loadWeather(PLACES[k],k+', '+PLACES[k].country); }
+  else{
+    let s=Object.keys(INDIA).find(x=>x.toLowerCase().includes(q));
+    if(s){ openMap(); selectState(s); }
+  }
+}
+</script>
+</head>
+<body>
+
+<div id="hud">
+  <div class="top">
+    <div class="brand">
+      <b>ATMOSPHEREX // 3D WEATHER INTELLIGENCE</b>
+      <small>Solar System network • India state weather • Live atmospheric telemetry</small>
+    </div>
+    <div class="actions">
+      <button class="btn" onclick="openMap()">◎ MAP & STATES</button>
+    </div>
+  </div>
+
+  <div id="title3d">
+    <b>SOLAR SYSTEM & EARTH WEATHER</b>
+    <span>CLICK ANY PLANET IN 3D OR USE SEARCH & MAP</span>
+  </div>
+
+  <div class="panel">
+    <div class="muted" id="status">LIVE • OPEN-METEO</div>
+    <h2 id="place">Bengaluru, India</h2>
+    <div class="muted" id="condition">Loading…</div>
+    <div class="metric">
+      <div class="m"><span>Temperature</span><b id="temp">--</b></div>
+      <div class="m"><span>Feels like</span><b id="feels">--</b></div>
+      <div class="m"><span>Humidity</span><b id="hum">--</b></div>
+      <div class="m"><span>Wind</span><b id="wind">--</b></div>
+      <div class="m"><span>Pressure</span><b id="press">--</b></div>
+      <div class="m"><span>Precipitation</span><b id="rain">--</b></div>
+    </div>
+    <div class="risk" id="risk">● Reading atmosphere…</div>
+    <div class="search">
+      <input id="search" placeholder="Search city, state (e.g. Mumbai, Delhi)..." onkeydown="if(event.key==='Enter')searchPlace()">
+      <button class="btn" onclick="searchPlace()">GO</button>
+    </div>
+    <div class="hint">Drag to look around • WASD to move • Click planets in space to inspect their atmosphere or search Indian cities/states.</div>
+  </div>
+</div>
+
+<div id="mapPanel">
+  <div class="maphead">
+    <div class="maptitle">
+      <b>GLOBAL WEATHER ACCESS MAP</b>
+      <small>Select regions or explore all Indian states</small>
+    </div>
+    <button class="btn" onclick="closeMap()">← BACK TO 3D ORBITS</button>
+  </div>
+  <div class="mapwrap">
+    <div id="worldMap" style="width:100%;height:100%"></div>
+    <div class="mapnote">
+      <b>ACCESS LAYERS</b><br>
+      <span class="muted">● Bright pins = active weather node<br>Click India or use the state selector on the right.</span>
+    </div>
+    <div class="statebar" id="statePanel"></div>
+  </div>
+</div>
+
+<a-scene embedded background="color: #000000" vr-mode-ui="enabled:false">
+  <a-entity light="type: ambient; color: #ffffff; intensity: 0.8"></a-entity>
+  <a-entity light="type: point; color: #fffee0; intensity: 3; distance: 200" position="0 0 0"></a-entity>
+
+  <!-- STARFIELD -->
+  <a-entity id="stars"></a-entity>
+
+  <!-- SUN -->
+  <a-entity position="0 0 0" onclick="loadPlanet('sun')">
+    <a-sphere radius="2.8" material="shader: flat; color: #ffaa00"></a-sphere>
+  </a-entity>
+
+  <!-- MERCURY -->
+  <a-entity animation="property: rotation; to: 0 360 0; dur: 8000; loop: true; easing: linear">
+    <a-entity position="5 0 0" onclick="loadPlanet('mercury')">
+      <a-sphere radius="0.3" material="color: #8c8c8c"></a-sphere>
+    </a-entity>
+  </a-entity>
+
+  <!-- VENUS -->
+  <a-entity animation="property: rotation; to: 0 360 0; dur: 12000; loop: true; easing: linear">
+    <a-entity position="8 0 0" onclick="loadPlanet('venus')">
+      <a-sphere radius="0.5" material="color: #e3bb76"></a-sphere>
+    </a-entity>
+  </a-entity>
+
+  <!-- EARTH -->
+  <a-entity animation="property: rotation; to: 0 360 0; dur: 16000; loop: true; easing: linear">
+    <a-entity position="11 0 0" onclick="loadWeather(PLACES.Bengaluru, 'Bengaluru, India')">
+      <a-sphere radius="0.6" material="color: #1f70c1"></a-sphere>
+    </a-entity>
+  </a-entity>
+
+  <!-- MARS -->
+  <a-entity animation="property: rotation; to: 0 360 0; dur: 20000; loop: true; easing: linear">
+    <a-entity position="14 0 0" onclick="loadPlanet('mars')">
+      <a-sphere radius="0.4" material="color: #c1440e"></a-sphere>
+    </a-entity>
+  </a-entity>
+
+  <!-- JUPITER -->
+  <a-entity animation="property: rotation; to: 0 360 0; dur: 26000; loop: true; easing: linear">
+    <a-entity position="18 0 0" onclick="loadPlanet('jupiter')">
+      <a-sphere radius="1.2" material="color: #d1b193"></a-sphere>
+    </a-entity>
+  </a-entity>
+
+  <!-- SATURN -->
+  <a-entity animation="property: rotation; to: 0 360 0; dur: 32000; loop: true; easing: linear">
+    <a-entity position="22 0 0" onclick="loadPlanet('saturn')">
+      <a-sphere radius="1.0" material="color: #e2c088"></a-sphere>
+      <a-torus radius="1.6" radius-tubular="0.05" rotation="70 0 0" material="color: #b59b6c"></a-torus>
+    </a-entity>
+  </a-entity>
+
+  <!-- URANUS -->
+  <a-entity animation="property: rotation; to: 0 360 0; dur: 38000; loop: true; easing: linear">
+    <a-entity position="26 0 0" onclick="loadPlanet('uranus')">
+      <a-sphere radius="0.7" material="color: #73cbd2"></a-sphere>
+    </a-entity>
+  </a-entity>
+
+  <!-- NEPTUNE -->
+  <a-entity animation="property: rotation; to: 0 360 0; dur: 44000; loop: true; easing: linear">
+    <a-entity position="30 0 0" onclick="loadPlanet('neptune')">
+      <a-sphere radius="0.7" material="color: #315fc8"></a-sphere>
+    </a-entity>
+  </a-entity>
+
+  <a-entity camera id="camera" position="0 5 40" look-controls wasd-controls>
+    <a-entity cursor="rayOrigin: mouse" position="0 0 -1" geometry="primitive: ring; radiusInner: 0.01; radiusOuter: 0.02" material="color: #72dcff; shader: flat"></a-entity>
+  </a-entity>
+</a-scene>
+
+<script>
+(function createStars() {
+  const stars = document.getElementById('stars');
+  if(!stars) return;
+  for(let i=0; i<800; i++){
+    let s = document.createElement('a-sphere');
+    let r = 50 + Math.random()*50, theta = Math.random()*Math.PI*2, phi = Math.acos(2*Math.random()-1);
+    s.setAttribute('position', `${r*Math.sin(phi)*Math.cos(theta)} ${r*Math.cos(phi)} ${r*Math.sin(phi)*Math.sin(theta)}`);
+    s.setAttribute('radius', Math.random()*0.06 + 0.02);
+    s.setAttribute('material', `shader: flat; color: ${Math.random() > 0.5 ? '#ffffff' : '#8cd2ff'}`);
+    stars.appendChild(s);
+  }
+  loadWeather(PLACES.Bengaluru, 'Bengaluru, Karnataka');
+})();
+</script>
+</body>
+</html>
